@@ -1,0 +1,7 @@
+build:
+  console:
+    event-handlers:
+      - status-
+      - desktop_notification-
+      - console_direct+
+      - event_log-

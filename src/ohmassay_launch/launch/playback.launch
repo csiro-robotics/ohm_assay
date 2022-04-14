@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+<launch>
+  <arg name="output" default="screen" doc="Display target"/>
+  <arg name="bags" doc="The list of paths (space separated) to the bags to replay."/>
+  <arg name="rate" default="1.0" doc="The real time factor to replay at."/>
+  <arg name="start" default="0.0" doc="The number of seconds into the bag to start replaying from."/>
+  <arg name="duration" default="" doc="Playback duration"/>
+  <arg name="mapper" default="ohm_cuda" doc="Mapping program: [ohm_cpu, ohm_cuda, ohm_ocl, octomap, voxblox_occ, voxblox_tsdf, none]"/>
+  <arg name="resolution" default="0.1" doc="Voxel size."/>
+  <arg name="half_extents" default="20" doc="Map half extents"/>
+  <arg name="sensor_topics" default="slam_base_link:/slam/odom/high/cloud" doc="Sensor frame/topic pairs list."/>
+  <arg name="ohm_mode" default="ndt" doc="Ohm mapping mode: [ndt, ndt_tm, occ, voxel-mean]"/>
+  <arg name="ocl_vendor" default="" doc="OpenCL device vendor name"/>
+  <arg name="gpu_cache_size" default="1.0" doc="GPU cache size in GiB."/>
+  <arg name="gpu_segment_length" default="10" doc="GPU ray segment length."/>
+  <arg name="stats" default="console" doc="Stats mode: [off,console,csv]"/>
+  <arg name="subscribe" default="rviz"
+    doc="Topic subscription mode. None ensures no visualisation subscription (messages not generated), hz uses `rostopic hz`, rivz launch rivz: [none,hz,rviz]"/>
+  <arg name="threads" default="6" doc="Number of threads where supported (tsdf)."/>
+  <arg name="pub_hz" default="1" doc="Visualisation publishing frequecy. No effect without 'subscribe'."/>
+  <arg name="rviz" default="voxels.rviz" doc="RViz file'."/>
+
+  <arg     if="$(eval arg('duration') == '')" name="duration_arg" value=""/>
+  <arg unless="$(eval arg('duration') == '')" name="duration_arg" value="--duration $(arg duration)"/>
+
+  <arg     if="$(eval arg('half_extents') == '0')" name="half_extents_arg" value=""/>
+  <arg unless="$(eval arg('half_extents') == '0')" name="half_extents_arg" value="--map-half-extents=$(arg half_extents)"/>
+
+  <arg     if="$(eval arg('ohm_mode') == 'ndt_tm')" name="ohm_mode1" value="ndt=tm"/>
+  <arg unless="$(eval arg('ohm_mode') == 'ndt_tm')" name="ohm_mode1" value="$(arg ohm_mode)"/>
+
+  <arg     if="$(eval arg('ohm_mode1') == 'occ')" name="ohm_mode_arg" value=""/>
+  <arg unless="$(eval arg('ohm_mode1') == 'occ')" name="ohm_mode_arg" value="--$(arg ohm_mode1)"/>
+
+  <arg     if="$(eval arg('ocl_vendor') == '')" name="ocl_vendor_arg" value=""/>
+  <arg unless="$(eval arg('ocl_vendor') == '')" name="ocl_vendor_arg" value="--vendor=$(arg ocl_vendor)"/>
+
+  <arg     if="$(eval arg('subscribe') == 'none')" name="output_suffix" value="_no_vis"/>
+  <arg unless="$(eval arg('subscribe') == 'none')" name="output_suffix" value=""/>
+
+  <arg name="mode_suffix" value="_$(arg ohm_mode)"/>
+
+  <!-- RViz -->
+  <node if="$(eval arg('subscribe') == 'rviz')" name="ohm_assay_rviz" pkg="rviz" type="rviz"
+    args="-d $(find ohmassay_launch)/config/$(arg rviz)" output="$(arg output)"/>
+
+  <!-- Mapping -->
+  <!-- ohm cpu -->
+  <group if="$(eval arg('mapper') == 'ohm_cpu')">
+    <node name="ohmpop_cpu" pkg="ohmpop_ros" type="ohmpopcpu_ros"
+      output="$(arg output)"
+      args="--resolution=$(arg resolution)
+            --sensor-topics=$(arg sensor_topics)
+            --map-frame=odom
+            --output=ohmpop_cpu$(arg mode_suffix)$(arg output_suffix)
+            --publish-frequency=$(arg pub_hz)
+            --uncompressed
+            --ray-length-max=$(arg half_extents)
+            --save-info
+            --stats=$(arg stats)
+            $(arg ohm_mode_arg)
+            $(arg half_extents_arg) --auto-finish"
+    />
+    <node if="$(eval arg('subscribe') == 'hz')" name="ohm_assay_hz" pkg="rostopic" type="rostopic" 
+      args="hz /ohmpop_cpu/voxels" output="$(arg output)"/>
+  </group>
+  <!-- ohm cuda -->
+  <group if="$(eval arg('mapper') == 'ohm_cuda')">
+    <node name="ohmpop_cuda" pkg="ohmpop_ros" type="ohmpopcuda_ros"
+      output="$(arg output)"
+      args="--resolution=$(arg resolution)
+            --sensor-topics=$(arg sensor_topics)
+            --map-frame=odom
+            --output=ohmpop_cuda$(arg mode_suffix)$(arg output_suffix)
+            --publish-frequency=$(arg pub_hz)
+            --gpu-cache-size=$(arg gpu_cache_size)
+            --gpu-ray-segment-length=$(arg gpu_segment_length)
+            --uncompressed
+            --ray-length-max=$(arg half_extents)
+            --save-info
+            --stats=$(arg stats)
+            $(arg ohm_mode_arg)
+            $(arg half_extents_arg) --auto-finish"
+    />
+    <node if="$(eval arg('subscribe') == 'hz')" name="ohm_assay_hz" pkg="rostopic" type="rostopic" 
+      args="hz /ohmpop_cuda/voxels" output="$(arg output)"/>
+  </group>
+  <!-- ohm OpenCL -->
+  <group if="$(eval arg('mapper') == 'ohm_ocl')">
+    <node name="ohmpop_ocl" pkg="ohmpop_ros" type="ohmpopocl_ros"
+      output="$(arg output)"
+      args="--resolution=$(arg resolution)
+            --sensor-topics=$(arg sensor_topics)
+            --map-frame=odom
+            --output=ohmpop_ocl$(arg mode_suffix)$(arg output_suffix)
+            --publish-frequency=$(arg pub_hz)
+            --gpu-cache-size=$(arg gpu_cache_size)
+            --gpu-ray-segment-length=$(arg gpu_segment_length)
+            --uncompressed
+            --ray-length-max=$(arg half_extents)
+            --save-info
+            --stats=$(arg stats)
+            $(arg ocl_vendor_arg)
+            $(arg ohm_mode_arg)
+            $(arg half_extents_arg) --auto-finish"
+    />
+    <node if="$(eval arg('subscribe') == 'hz')" name="ohm_assay_hz" pkg="rostopic" type="rostopic"
+      args="hz /ohmpop_ocl/voxels" output="$(arg output)"/>
+  </group>
+  <!-- octomap -->
+  <group if="$(eval arg('mapper') == 'octomap')">
+    <node name="octomappop" pkg="octomappop_ros" type="octopop_ros"
+      output="$(arg output)"
+      args="--resolution=$(arg resolution)
+            --sensor-topics=$(arg sensor_topics)
+            --map-frame=odom
+            --output=octomap$(arg output_suffix)
+            --publish-frequency=$(arg pub_hz)
+            --save-info
+            --ray-length-max=$(arg half_extents)
+            --stats=$(arg stats)
+            --auto-finish"
+    />
+    <node if="$(eval arg('subscribe') == 'hz')" name="ohm_assay_hz" pkg="rostopic" type="rostopic"
+      args="hz /octomappop/voxels" output="$(arg output)"/>
+  </group>
+  <!-- voxblox occupancy -->
+  <group if="$(eval arg('mapper') == 'voxblox_occ')">
+    <node name="voxbloxpop_occupancy" pkg="voxbloxpop_ros"
+      type="voxbloxpopoccupancy_ros" output="$(arg output)"
+      args="--resolution=$(arg resolution)
+            --sensor-topics=$(arg sensor_topics)
+            --map-frame=odom
+            --output=voxblox_occupancy$(arg output_suffix)
+            --publish-frequency=$(arg pub_hz)
+            --save-info
+            --stats=$(arg stats)
+            $(arg half_extents_arg) --auto-finish"
+    />
+    <node if="$(eval arg('subscribe') == 'hz')" name="ohm_assay_hz" pkg="rostopic" type="rostopic"
+      args="hz /voxbloxpop_occupancy/voxels" output="$(arg output)"/>
+  </group>
+  <!-- voxblox tsdf -->
+  <group if="$(eval arg('mapper') == 'voxblox_tsdf')">
+    <node name="voxbloxpop_tsdf" pkg="voxbloxpop_ros"
+      type="voxbloxpoptsdf_ros" output="$(arg output)"
+      args="--resolution=$(arg resolution)
+            --sensor-topics=$(arg sensor_topics)
+            --map-frame=odom
+            --output=voxblox_tsdf$(arg output_suffix)
+            --publish-frequency=$(arg pub_hz)
+            --save-info
+            --threads=$(arg threads)
+            --stats=$(arg stats)
+            $(arg half_extents_arg) --auto-finish"
+    />
+    <node if="$(eval arg('subscribe') == 'hz')" name="ohm_assay_hz" pkg="rostopic" type="rostopic"
+      args="hz /voxbloxpop_tsdf/voxels" output="$(arg output)"/>
+  </group>
+
+  <!-- bag playback -->
+  <node name="play" pkg="rosbag" type="play" required="true"
+      args="--bags $(arg bags)
+            --clock clock:=/clock
+            --rate $(arg rate)
+            --start $(arg start)
+            $(arg duration_arg)">
+  </node>
+
+</launch>

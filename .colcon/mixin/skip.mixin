@@ -1,0 +1,43 @@
+build:
+  # Skip all 3rd-party packages
+  skip-3p:
+    packages-skip:
+      - 3es
+      - catkin_simple
+      - eigen_catkin
+      - eigen_checks
+      - gflags_catkin
+      - glm
+      - glog_catkin
+      - gootesttest-distribution
+      - minkindr
+      - minkindr_conversions
+      - minkindr_python
+      - protobuf_catkin
+      - voxblox
+      - voxblox_msgs
+      - voxblox_ros
+      - voxblox_rviz_plugin
+      - zlib
+  # Skip building unnecessary packages
+  skip-extra:
+    packages-skip:
+      - minkindr_python # Missing dependencies
+      - voxblox_msgs
+      - voxblox_ros # We only use this code for reference
+      - voxblox_rviz_plugin
+  skip-ros:
+    packages-skip:
+      - catkin_simple
+      - eigen_catkin
+      - eigen_checks
+      - gflags_catkin
+      - glog_catkin
+      - octomappop_ros
+      - ohmdataros
+      - ohmpop_ros
+      - protobuf_catkin
+      - voxblox_msgs
+      - voxblox_ros
+      - voxblox_rviz_plugin
+      - voxbloxpop_ros

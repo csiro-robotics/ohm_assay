@@ -1,0 +1,42 @@
+[submodule "src/3rdparty/googletest"]
+	path = src/3rdparty/googletest
+	url = git@github.com:google/googletest.git
+[submodule "src/3rdparty/voxblox"]
+	path = src/3rdparty/voxblox
+	url = git@github.com:ethz-asl/voxblox.git
+[submodule "src/3rdparty/catkin_simple"]
+	path = src/3rdparty/catkin_simple
+	url = git@github.com:catkin/catkin_simple.git
+[submodule "src/3rdparty/eigen_catkin"]
+	path = src/3rdparty/eigen_catkin
+	url = git@github.com:ethz-asl/eigen_catkin.git
+[submodule "src/3rdparty/eigen_checks"]
+	path = src/3rdparty/eigen_checks
+	url = git@github.com:ethz-asl/eigen_checks.git
+[submodule "src/3rdparty/gflags_catkin"]
+	path = src/3rdparty/gflags_catkin
+	url = git@github.com:ethz-asl/gflags_catkin.git
+[submodule "src/3rdparty/glog_catkin"]
+	path = src/3rdparty/glog_catkin
+	url = git@github.com:ethz-asl/glog_catkin.git
+[submodule "src/3rdparty/minkindr"]
+	path = src/3rdparty/minkindr
+	url = git@github.com:ethz-asl/minkindr.git
+[submodule "src/3rdparty/minkindr_ros"]
+	path = src/3rdparty/minkindr_ros
+	url = git@github.com:ethz-asl/minkindr_ros.git
+[submodule "src/3rdparty/protobuf_catkin"]
+	path = src/3rdparty/protobuf_catkin
+	url = git@github.com:ethz-asl/protobuf_catkin.git
+[submodule "src/3rdparty/zlib"]
+	path = src/3rdparty/zlib
+	url = git@github.com:madler/zlib.git
+[submodule "src/3rdparty/3es-core"]
+	path = src/3rdparty/3es-core
+	url = https://github.com/csiro-robotics/3es-core.git
+[submodule "src/3rdparty/glm"]
+	path = src/3rdparty/glm
+	url = https://github.com/g-truc/glm.git
+[submodule "src/3rdparty/ohm"]
+	path = src/3rdparty/ohm
+	url = git@github.com:csiro-robotics/ohm.git

@@ -1,0 +1,48 @@
+paths:
+  src/3rdparty/googletest:
+    type: cmake
+names:
+  3es:
+    dependencies: [googletest-distribution, zlib]
+  glm:
+    cmake-args:
+      - -DBUILD_SHARED_LIBS=Off
+      - -DBUILD_STATIC_LIBS=Off
+      - -DBUILD_TESTING=Off
+  googletest-distribution:
+    cmake-args:
+      - -DCMAKE_CXX_STANDARD=14
+      - -Dgtest_force_shared_crt=ON
+  minkindr:
+    cmake-args:
+      - -DCMAKE_CXX_STANDARD=14
+  minkindr_conversions:
+    cmake-args:
+      - -DCMAKE_CXX_STANDARD=14
+  octomappop:
+    dependencies: [ohm]
+  octomappop_ros:
+    dependencies: [ohm, ohmdataros, octomappop]
+  ohm:
+    dependencies: [3es, glm, googletest-distribution, zlib]
+    cmake-args:
+      - -DWITH_EIGEN=On
+      - -DWITH_PDAL=Off
+      - -DOHM_SYSTEM_GTEST=On
+      # Using the static cuda runtime has proven problematic for many configurations.
+      - -DCUDA_USE_STATIC_RUNTIME=Off
+  ohmdataros:
+    dependencies: [ohm]
+  ohmpop_ros:
+    dependencies: [ohm, ohmdataros]
+  voxbloxpop:
+    dependencies: [ohm, ohmdataros, voxblox]
+  voxblox:
+    cmake-args:
+      - -DCMAKE_CXX_STANDARD=14
+  voxblox_ros:
+    cmake-args:
+      - -DCMAKE_CXX_STANDARD=14
+  voxblox_rviz_plugin:
+    cmake-args:
+      - -DCMAKE_CXX_STANDARD=14

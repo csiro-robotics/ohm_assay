@@ -1,0 +1,12 @@
+build:
+  rel-with-deb:
+    cmake-args:
+      - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - -G
+      - Ninja
+    merge-install: true
+    packages-skip:
+      - minkindr_python
+      - voxblox_msgs
+      - voxblox_ros # We only use this code for reference
+      - voxblox_rviz_plugin
