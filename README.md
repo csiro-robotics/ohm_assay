@@ -91,12 +91,32 @@ To run the offline solutions
 
 Run `<lib>pop<type> --help` for a list of options and arguments.
 
+## Test data
+
+Five test data sets are available via [CSIRO Data Access Portal](https://data.csiro.au/). This location contains two types of data archives suffixed `_bags.zip` and `_cloud.zip`. The `_bags.zip` files expand to ROS melodic generated bag files containing point cloud and trajectory messages generated from approximately five minutes of operation. The `_cloud.zip` files contain a post processed PLY point cloud and text based trajectory for the same five minute period. The flatpack and hovermap data sets were captured under direct operator control, while all other data are captured during autonomous operation. All data sets except flatpack are captured with a lidar mounted to a rotating encoder.
+
+The data set environments are described below.
+
+| Data set name | Environment                                                                                        |
+| ------------- | -------------------------------------------------------------------------------------------------- |
+| Cave          | Tracked vehicle operating at Chillagoe Caves, Queensland, Australia                                |
+| Dusty         | Marsupial UAV launch during the DARPA Subt Challenge final which stirs up dust in the environment. |
+| Flatpack      | Boston Dynamics Spot carrying a statically mounted lidar, operating at QCAT, Queensland, Australia |
+| Hovermap \*   | UAV flight carrying an Emesent Hovermap payload at QCAT, Queensland, Australia.                    |
+| Platform      | Spot autonomous operation at DARPA Subt Challenge finals, including stairs descent.                |
+
+\* Hovermap data set courtesy of [Emesent](https://emesent.io/). All other data sets captured by the CSIRO Robotics and Autonomous Systems group.
+
+Other data sets may also be used provided they adhere to the requirements outlined in the sections below.
+
 ### ROS bag data requirements
 
 OHM assay requires the following data from a ros bag data source:
 
 - A `tf` tree containing a moving frame which represents the lidar sensor.
 - A `PointCloud2` topic containing lidar sensor data in odometry or map frame.
+
+OHM assay supports individual timestamps for points in the `PointCloud2` message and will use these for OHM algorithms if present. Point times are read from the first available point cloud field matching one of the following labels: `time`, `times`, `timestamp`.
 
 ### Point cloud requirements
 
