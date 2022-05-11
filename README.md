@@ -93,7 +93,7 @@ Run `<lib>pop<type> --help` for a list of options and arguments.
 
 ## Test data
 
-Five test data sets are available via [CSIRO Data Access Portal](https://data.csiro.au/). This location contains two types of data archives suffixed `_bags.zip` and `_cloud.zip`. The `_bags.zip` files expand to ROS melodic generated bag files containing point cloud and trajectory messages generated from approximately five minutes of operation. The `_cloud.zip` files contain a post processed PLY point cloud and text based trajectory for the same five minute period. The flatpack and hovermap data sets were captured under direct operator control, while all other data are captured during autonomous operation. All data sets except flatpack are captured with a lidar mounted to a rotating encoder.
+Five test data sets are available via [CSIRO Data Access Portal](https://data.csiro.au/collection/csiro%3A54637v1). This location contains two types of data archives suffixed `_bags.zip` and `_cloud.zip`. The `_bags.zip` files expand to ROS melodic generated bag files containing point cloud and trajectory messages generated from approximately five minutes of operation. The `_cloud.zip` files contain a post processed PLY point cloud and text based trajectory for the same five minute period. The flatpack and hovermap data sets were captured under direct operator control, while all other data are captured during autonomous operation. All data sets except flatpack are captured with a lidar mounted to a rotating encoder.
 
 The data set environments are described below.
 
