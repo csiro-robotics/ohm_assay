@@ -10,7 +10,10 @@
 
 #include <ohmutil/Colour.h>
 #include <ohmutil/OhmUtil.h>
+#include <ohmutil/PlyMesh.h>
 #include <ohmutil/PlyPointStream.h>
+
+#include <ohmtools/OhmCloud.h>
 
 #include <octomap/octomap.h>
 
@@ -180,6 +183,38 @@ void OctomapPop::finaliseMap()
 }
 
 
+namespace
+{
+/// Helper class to expose @c tree_max_val from an @c octomap::OcTree map.
+class DummyOctree : public octomap::OcTree
+{
+public:
+  /// Get the @c tree_max_val for @p map .
+  static unsigned treeMaxVal(const octomap::OcTree &map) { return static_cast<const DummyOctree &>(map).tree_max_val; }
+};
+
+void processVoxel(const octomap::OcTree &map, const octomap::OcTreeKey &voxel_key, unsigned depth, float occupancy,
+                  const std::function<void(const glm::dvec3 &pos, float occupancy)> &add_voxel)
+{
+  if (depth == map.getTreeDepth())
+  {
+    const auto pt = map.keyToCoord(voxel_key, depth);
+    add_voxel(glm::dvec3(pt.x(), pt.y(), pt.z()), occupancy);
+  }
+  else
+  {
+    octomap::OcTreeKey child_key;
+    octomap::key_type center_offset_key = DummyOctree::treeMaxVal(map) >> depth + 1;
+    for (unsigned i = 0; i < 8u; ++i)
+    {
+      octomap::computeChildKey(i, center_offset_key, voxel_key, child_key);
+      processVoxel(map, child_key, depth + 1, occupancy, add_voxel);
+    }
+  }
+}
+}  // namespace
+
+
 int OctomapPop::saveMap(const std::string &path_without_extension)
 {
   const std::string output_file = path_without_extension + ".bt";
@@ -189,9 +224,9 @@ int OctomapPop::saveMap(const std::string &path_without_extension)
   if (!ok)
   {
     ohm::logger::error("Failed to save map\n");
-    return -1;
   }
-  return 0;
+
+  return ok ? 0 : -1;
 }
 
 
@@ -199,6 +234,7 @@ int OctomapPop::saveCloud(const std::string &path_ply)
 {
   // Save a cloud representation. Need to walk the tree leaves.
   ohm::logger::info("Converting to point cloud ", path_ply, '\n');
+  ohm::PlyMesh voxel_ply;
   ohm::PlyPointStream ply({ ohm::PlyPointStream::Property{ "x", ohm::PlyPointStream::Type::kFloat64 },
                             ohm::PlyPointStream::Property{ "y", ohm::PlyPointStream::Type::kFloat64 },
                             ohm::PlyPointStream::Property{ "z", ohm::PlyPointStream::Type::kFloat64 },
@@ -208,10 +244,11 @@ int OctomapPop::saveCloud(const std::string &path_ply)
   std::ofstream fout(path_ply, std::ios::binary);
   ply.open(fout);
 
-  const bool occupancy_colour = glm::all(glm::greaterThanEqual(options().output().cloud_colour, glm::vec3(0.0f)));
-  const ohm::Colour c = ohm::Colour::fromRgbf(options().output().cloud_colour.r, options().output().cloud_colour.g,
-                                              options().output().cloud_colour.b);
+  const bool use_uniform_colour = glm::all(glm::greaterThanEqual(options().output().cloud_colour, glm::vec3(0.0f)));
+  const ohm::Colour uniform_colour = ohm::Colour::fromRgbf(
+    options().output().cloud_colour.r, options().output().cloud_colour.g, options().output().cloud_colour.b);
 
+  // Helper to resolve a colour from occupancy.
   const auto colour_by_occupancy = [](float occupancy) {
     ohm::Colour colour = ohm::Colour::kColours[ohm::Colour::kLightSteelBlue];
     // Occupancy will be at least the occupancy threshold (normaly 50%) so this will only darken to that level.
@@ -219,27 +256,104 @@ int OctomapPop::saveCloud(const std::string &path_ply)
     return colour;
   };
 
+  // Helper to resolve a colour by height.
+  double x;
+  double y;
+  double min_height;
+  double max_height;
+  map_->getMetricMin(x, y, min_height);
+  map_->getMetricMax(x, y, max_height);
+  const auto colour_by_height = [max_height, min_height](const glm::dvec3 &pos) {
+    const ohm::Colour from_colour = ohmtools::ColourByHeight::kDefaultFrom;
+    const ohm::Colour to_colour = ohmtools::ColourByHeight::kDefaultTo;
+    const double lerp = std::max(0.0, std::min((pos.z - min_height) / (max_height - min_height), 1.0));
+    return ohm::Colour::lerp(from_colour, to_colour, lerp);
+    ;
+  };
+
+  // Helper to add a voxel cube to voxel_ply
+  const auto add_voxel = [&voxel_ply, &colour_by_height, half_size = 0.5 * map_->getResolution()](const glm::dvec3 &pos,
+                                                                                                  float occupancy) {
+    const std::array<glm::dvec3, 8> vertices = {
+      pos + glm::dvec3(-half_size, -half_size, -half_size),  // left, front, bottom
+      pos + glm::dvec3(half_size, -half_size, -half_size),   // right, front, bottom
+      pos + glm::dvec3(half_size, half_size, -half_size),    // right, back, bottom
+      pos + glm::dvec3(-half_size, half_size, -half_size),   // left, back, bottom
+      pos + glm::dvec3(-half_size, -half_size, half_size),   // left, front, top
+      pos + glm::dvec3(half_size, -half_size, half_size),    // right, front, top
+      pos + glm::dvec3(half_size, half_size, half_size),     // right, back, top
+      pos + glm::dvec3(-half_size, half_size, half_size),    // left, back, top
+    };
+    std::array<unsigned, 3 * 12> indices = {
+      0, 3, 1, 1, 3, 2,  // bottom
+      0, 5, 4, 1, 5, 0,  // front
+      1, 6, 5, 2, 6, 1,  // right
+      2, 7, 6, 3, 7, 2,  // back
+      3, 4, 7, 4, 3, 0,  // left
+      4, 5, 6, 6, 7, 4,  // top
+    };
+    const auto colour = colour_by_height(pos);
+    const std::array<ohm::Colour, 8> colours = { colour, colour, colour, colour, colour, colour, colour, colour };
+    const unsigned base_index = voxel_ply.addVertices(vertices.data(), vertices.size(), colours.data());
+    for (auto &index : indices)
+    {
+      index += base_index;
+    }
+    voxel_ply.addTriangles(indices.data(), indices.size() / 3);
+  };
+
+  // Helper to add a point cloud point to ply
+  const auto add_point = [&ply, &colour_by_occupancy, use_uniform_colour, uniform_colour](const glm::dvec3 &pos,
+                                                                                          float occupancy) {
+    const ohm::Colour point_colour = (use_uniform_colour) ? uniform_colour : colour_by_occupancy(occupancy);
+    ply.setPointPosition(pos);
+    ply.setProperty("red", point_colour.r());
+    ply.setProperty("green", point_colour.g());
+    ply.setProperty("blue", point_colour.b());
+    ply.writePoint();
+  };
+
+  // Helper which effects both add_point and add_voxel
+  const auto add_point_and_voxel = [&add_point, &add_voxel](const glm::dvec3 &pos, float occupancy) {
+    add_point(pos, occupancy);
+    add_voxel(pos, occupancy);
+  };
+
+  // Iterate the leaf voxels.
   const auto map_end_iter = map_->end_leafs();
   for (auto iter = map_->begin_leafs(); iter != map_end_iter && quitLevel() < 2; ++iter)
   {
     const float occupancy = float(iter->getOccupancy());
     if (occupancy >= map_->getOccupancyThres())
     {
-      const auto coord = iter.getCoordinate();
-      const auto point = glm::dvec3(coord.x(), coord.y(), coord.z()) + mapOrigin();
-
-      const ohm::Colour point_colour = (occupancy_colour) ? c : colour_by_occupancy(occupancy);
-
-      ply.setPointPosition(point);
-      ply.setProperty("red", point_colour.r());
-      ply.setProperty("green", point_colour.g());
-      ply.setProperty("blue", point_colour.b());
-      ply.writePoint();
+      // Process occupied voxels. processVoxels will expand collapsed nodes if required.
+      processVoxel(*map_, iter.getKey(), iter.getDepth(), occupancy, add_point_and_voxel);
     }
   }
 
   ply.close();
   ohm::logger::info(ply.pointCount(), " point(s) saved", '\n');
+
+  // Resolve voxel ply file name.
+  auto last_dot = path_ply.find_last_of('.');
+  std::string voxel_ply_name;
+  if (last_dot != std::string::npos)
+  {
+    voxel_ply_name = path_ply.substr(0, last_dot);
+  }
+  else
+  {
+    voxel_ply_name = path_ply;
+  }
+  const std::string cloud_suffix = "_cloud";
+  if (voxel_ply_name.substr(std::max(0, int(voxel_ply_name.size()) - int(cloud_suffix.size()))) == cloud_suffix)
+  {
+    voxel_ply_name = voxel_ply_name.substr(0, voxel_ply_name.size() - cloud_suffix.size());
+  }
+  voxel_ply_name += "_voxels.ply";
+  ohm::logger::info("Saving voxel mesh ", voxel_ply_name, '\n');
+  voxel_ply.save(voxel_ply_name, true);
+
   return 0;
 }
 
